@@ -1,5 +1,5 @@
 from telethon import TelegramClient, events
-from telethon.tl.types import User
+from telethon.tl.types import User, Channel
 from langdetect import detect
 from deep_translator import GoogleTranslator
 import textwrap
@@ -20,7 +20,7 @@ apiname = os.environ.get("APINAME")
 dlloc = os.environ.get("DLLOC")
 input_channels_entities = os.environ.get("INPUT_CHANNELS")
 blacklist = os.environ.get("BLACKLIST")
-translate = bool(os.environ.get("TRANSLATE"))
+translate = False
 
 if blacklist == 'True':
     blacklist = True
@@ -62,17 +62,22 @@ def start():
 
         msg = event.message.message
 
-        if translate:
-            try:
-                if msg != '' and detect(textwrap.wrap(msg, 2000)[0]) != 'en':
-                    msg += '\n\n' + 'Translated:\n\n' + GoogleTranslator(source='auto', target='en').translate(msg)
-            except:
-                pass
+        # if translate:
+        #     try:
+        #         if msg != '' and detect(textwrap.wrap(msg, 2000)[0]) != 'en':
+        #             msg += '\n\n' + 'Translated:\n\n' + GoogleTranslator(source='auto', target='en').translate(msg)
+        #     except:
+        #         pass
 
-        if event.message.sender.username is not None:
-            username = event.message.sender.username + ' in ' + event.chat.title
+        if isinstance(event.chat, Channel):  # Check if it's a channel
+            username = event.chat.title  # Use the channel's title instead of a user's name
         else:
-            username = event.chat.title
+            if event.message.sender.first_name is not None:
+                username = event.chat.title + ' ' + event.message.sender.first_name
+            elif event.message.sender.username is not None:
+                username = event.chat.title + ' ' + event.message.sender.username
+            else:
+                username = event.chat.title
 
         if event.message.media is not None and event.message.file:
             dur = event.message.file.duration
@@ -93,6 +98,7 @@ def start():
                 os.remove(path)
         else:
             await send_to_webhook(msg, username)
+
 
     client.run_until_disconnected()
 
